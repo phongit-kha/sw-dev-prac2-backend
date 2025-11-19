@@ -122,6 +122,18 @@ exports.createReservation = async (req, res, next) => {
       });
     }
 
+    // Check if book is available
+    if (book.availableAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Book is out of stock",
+      });
+    }
+
+    // Decrease availableAmount
+    book.availableAmount -= 1;
+    await book.save();
+
     const request = await Reservation.create({
       ...req.body,
       user: req.user.id,
@@ -226,6 +238,13 @@ exports.deleteReservation = async (req, res, next) => {
         success: false,
         error: "Not authorized to delete this reservation",
       });
+    }
+
+    // Increase availableAmount back when reservation is deleted
+    const book = await Book.findById(request.book);
+    if (book) {
+      book.availableAmount += 1;
+      await book.save();
     }
 
     await Reservation.findByIdAndDelete(req.params.id);
